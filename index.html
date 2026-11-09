@@ -61,6 +61,7 @@ button.pause{background:var(--pause);color:#fff;border-color:var(--pause);font-w
 button.on{outline:2px solid var(--accent);outline-offset:1px}
 label{font-size:14px;display:flex;align-items:center;gap:8px}
 input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+input[type=number]{width:96px;font:inherit;font-family:var(--f-mono);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
 input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 @media (max-width:860px){
@@ -95,6 +96,10 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none
         <button class="primary" id="btnPour" data-i18n="pour"></button>
         <button class="pause" id="btnPause" disabled></button>
         <button id="btnEmpty" data-i18n="empty"></button>
+      </div>
+      <div class="row" style="align-items:center">
+        <label for="amt"><span data-i18n="amt"></span> <input type="number" id="amt" min="1" max="20000" step="100" value="1800"> cm³</label>
+        <button id="btnAdd" data-i18n="add"></button>
       </div>
       <label for="rate"><span data-i18n="speed"></span> <input type="range" id="rate" min="100" max="1500" step="50" value="450"><span class="mono" id="rateVal">450</span>&nbsp;cm³/s</label>
     </section>
@@ -137,6 +142,8 @@ const T={
  en:{title:"A Prism Fixed Inside a Cube Container: 4 Faces Free, 2 Faces Attached to the Container",
   sub:"Cube container, edge 20 cm. A solid 4 × 10 × 20 cm prism runs through the centre; its two 4 × 10 ends are joined to the front and back walls.",
   hint:"Drag to rotate · scroll or pinch to zoom", pausedTag:"⏸ Time paused",
+  amt:"Amount to add", add:"Add", tBadAmt:"Enter an amount greater than 0",
+  tAdded:(a,v,h)=>`Added ${a} cm³ → V = ${v} cm³, h = ${h} cm`,
   hPour:"Add water", pour:"Start pouring", pause:"Pause time", resume:"Resume time", empty:"Empty", speed:"Speed",
   hView:"Viewing angle", vIso:"3D", vFront:"Front", vTop:"Top", vRight:"Right", reset:"Back to start position",
   auto:"Auto-rotate", hide:"Hide container and prism (water only)", labels:"Show dimensions",
@@ -147,6 +154,8 @@ const T={
  zh:{title:"立方容器中安裝一柱體，4 面懸空，2 面與容器相連",
   sub:"正方體容器邊長 20 cm；4 × 10 × 20 cm 的實心柱體穿過中央，兩個 4 × 10 的端面分別與容器前、後壁相連。",
   hint:"拖曳旋轉 · 滾輪或雙指縮放", pausedTag:"⏸ 時間暫停",
+  amt:"加水量", add:"加入", tBadAmt:"請輸入大於 0 的水量",
+  tAdded:(a,v,h)=>`已加入 ${a} cm³ → V = ${v} cm³，h = ${h} cm`,
   hPour:"加水", pour:"開始加水", pause:"時間暫停", resume:"時間繼續", empty:"清空", speed:"速度",
   hView:"觀察角度", vIso:"立體", vFront:"前視圖", vTop:"俯視圖", vRight:"右視圖", reset:"回到初始位置",
   auto:"自動旋轉", hide:"隱藏容器與柱體（只看水）", labels:"顯示尺寸",
@@ -284,16 +293,20 @@ const lvlMat=new THREE.LineDashedMaterial({color:0x0f6f9c,dashSize:0.6,gapSize:0
 const lvl=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(20,0,20),new THREE.Vector3(24,0,20)]),lvlMat); lvl.computeLineDistances(); inner.add(lvl);
 
 // ---------- state ----------
-let V=0, spilled=0, pouring=false, paused=false, overflowAcc=0, overflowed=false;
+let V=0, spilled=0, pouring=false, paused=false, overflowAcc=0, overflowed=false, target=null, added=0;
 const $=id=>document.getElementById(id);
 const btnPour=$('btnPour'),btnPause=$('btnPause'),btnEmpty=$('btnEmpty');
 let toastTimer=null;
 function toast(msg,kind){const t=$('toast');t.textContent=msg;t.className='toast'+(kind?' '+kind:'');t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.hidden=true,3400);}
 
-btnPour.onclick=()=>{ if(V>=CAP){toast(tr('tFull'));return;} pouring=true; paused=false; overflowAcc=0; overflowed=false; refreshUI(); };
+function begin(tgt){ if(V>=CAP){toast(tr('tFull'));return;} target=tgt; added=0; pouring=true; paused=false; overflowAcc=0; overflowed=false; refreshUI(); }
+btnPour.onclick=()=>begin(null);
+function addAmount(){ const a=Math.round(+$('amt').value); if(!(a>0)){toast(tr('tBadAmt'));return;} begin(a); }
+$('btnAdd').onclick=addAmount;
+$('amt').addEventListener('keydown',e=>{ if(e.key==='Enter' && !$('btnAdd').disabled) addAmount(); });
 btnPause.onclick=()=>{ if(!pouring&&!paused) return; paused=!paused;
   if(paused) toast(tr('tPause')(Math.round(V),hOf(V).toFixed(2)),'okay'); refreshUI(); };
-btnEmpty.onclick=()=>{ pouring=false; paused=false; V=0; spilled=0; overflowed=false; for(let i=0;i<NP;i++)pPos[i*3+1]=-999; refreshUI(); };
+btnEmpty.onclick=()=>{ pouring=false; paused=false; target=null; V=0; spilled=0; overflowed=false; for(let i=0;i<NP;i++)pPos[i*3+1]=-999; refreshUI(); };
 $('rate').oninput=e=>$('rateVal').textContent=e.target.value;
 $('hideBox').onchange=e=>{ boxGroup.visible=!e.target.checked; };
 $('labels').onchange=e=>{ labelGroup.visible=e.target.checked; };
@@ -314,6 +327,7 @@ function refreshUI(){
   else if(V>0){st.dataset.s='idle';tx.textContent=tr('sStill');}
   else {st.dataset.s='idle';tx.textContent=tr('sEmpty');}
   btnPour.disabled=pouring||paused||V>=CAP;
+  $('btnAdd').disabled=pouring||paused||V>=CAP;
   btnPause.disabled=!(pouring||paused);
   btnPause.textContent=paused?tr('resume'):tr('pause');
   $('pausedTag').hidden=!paused;
@@ -362,10 +376,12 @@ function frame(now){
   const dt=Math.min(0.05,(now-last)/1000); last=now;
   if(pouring&&!paused){
     const rate=+$('rate').value;
-    V+=rate*dt;
+    let dv=rate*dt; if(target!=null) dv=Math.min(dv,target-added);
+    added+=dv; V+=dv;
     if(V>=CAP){ spilled+=V-CAP; V=CAP; if(!overflowed){ overflowed=true; toast(tr('tOver')); }
       overflowAcc+=dt; spawn(Math.ceil(rate/40));
-      if(overflowAcc>2.6){ pouring=false; toast(tr('tAuto')); } }
+      if(target==null && overflowAcc>2.6){ pouring=false; toast(tr('tAuto')); } }
+    if(target!=null && added>=target-1e-6){ pouring=false; toast(tr('tAdded')(target,Math.round(V),hOf(V).toFixed(2))+(spilled>0?(lang==='en'?` (spilled ${Math.round(spilled)} cm³)`:`（溢出 ${Math.round(spilled)} cm³）`):''),'okay'); target=null; }
     refreshUI();
   }
   const h=hOf(V);
