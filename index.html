@@ -1,0 +1,393 @@
+<title>穿孔立方容器注水實驗</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&family=Source+Serif+4:opsz,wght@8..60,700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 3D stage on the left (sticky), lab-notebook control panel on the right; stacks on phones. */
+:root{
+  --bg:#eef2f4; --surface:#ffffff; --fg:#1b2a33; --muted:#5d6f7a; --line:#cfd9de;
+  --accent:#0f6f9c; --accent-ink:#ffffff; --warn:#b4472d; --pause:#7a5bb0;
+  --stage:#dfe7eb; --chip:#e4edf1;
+  --f-display:"Source Serif 4","Noto Serif TC","Songti TC",Georgia,serif;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171c; --surface:#16222a; --fg:#e3ecf0; --muted:#93a7b2; --line:#2a3a44;
+  --accent:#4fb3de; --accent-ink:#06202c; --warn:#f08a6c; --pause:#b59ae6;
+  --stage:#121d24; --chip:#1e2d36; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171c; --surface:#16222a; --fg:#e3ecf0; --muted:#93a7b2; --line:#2a3a44;
+  --accent:#4fb3de; --accent-ink:#06202c; --warn:#f08a6c; --pause:#b59ae6;
+  --stage:#121d24; --chip:#1e2d36; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px}
+.wrap{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 16px}
+header > div{min-width:0;flex:1 1 420px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(20px,2.6vw,28px);line-height:1.3;margin:0;text-wrap:balance}
+html[lang="zh-Hant"] h1{font-family:"Noto Serif TC","Songti TC",serif;font-weight:900}
+.sub{color:var(--muted);font-size:14px;margin:4px 0 0}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;flex:none}
+.lang button{border:0;border-radius:0;padding:6px 14px;background:transparent}
+.lang button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.stage{position:sticky;top:12px;height:min(78vh,760px);min-height:360px;border-radius:14px;overflow:hidden;background:var(--stage);border:1px solid var(--line);touch-action:none}
+.stage canvas{display:block;width:100%;height:100%;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--surface) 80%,transparent);padding:4px 10px;border-radius:99px;pointer-events:none}
+.paused-tag{position:absolute;right:12px;top:12px;font-size:13px;font-weight:700;color:#fff;background:var(--pause);padding:4px 12px;border-radius:99px;pointer-events:none}
+.toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);max-width:calc(100% - 32px);text-align:center;background:var(--warn);color:#fff;font-weight:700;padding:6px 16px;border-radius:99px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.toast.okay{background:var(--accent);color:var(--accent-ink)}
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:700}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{display:flex;flex-direction:column}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-family:var(--f-mono);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:13px;font-weight:400;color:var(--muted)}
+.state{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--chip);width:fit-content}
+.state i{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.state[data-s="pour"] i{background:var(--accent)} .state[data-s="pause"] i{background:var(--pause)} .state[data-s="over"] i{background:var(--warn)}
+.meter{height:8px;border-radius:99px;background:var(--chip);overflow:hidden}
+.meter b{display:block;height:100%;width:0;background:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;font-size:14px;font-weight:500;border:1px solid var(--line);background:var(--chip);color:var(--fg);padding:7px 12px;border-radius:8px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.42;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+button.pause{background:var(--pause);color:#fff;border-color:var(--pause);font-weight:700}
+button.on{outline:2px solid var(--accent);outline-offset:1px}
+label{font-size:14px;display:flex;align-items:center;gap:8px}
+input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
+input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+@media (max-width:860px){
+  .wrap{grid-template-columns:minmax(0,1fr)}
+  .stage{position:relative;top:0;height:58vh}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1 data-i18n="title"></h1>
+      <p class="sub" data-i18n="sub"></p>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button id="lnEn" aria-pressed="true">English</button>
+      <button id="lnZh" aria-pressed="false">中文</button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="toast" id="toast" hidden></div>
+    <div class="paused-tag" id="pausedTag" hidden data-i18n="pausedTag"></div>
+    <div class="hint" data-i18n="hint"></div>
+  </div>
+
+  <div class="panel">
+    <section>
+      <h2 data-i18n="hPour"></h2>
+      <div class="row">
+        <button class="primary" id="btnPour" data-i18n="pour"></button>
+        <button class="pause" id="btnPause" disabled></button>
+        <button id="btnEmpty" data-i18n="empty"></button>
+      </div>
+      <label for="rate"><span data-i18n="speed"></span> <input type="range" id="rate" min="100" max="1500" step="50" value="450"><span class="mono" id="rateVal">450</span>&nbsp;cm³/s</label>
+    </section>
+
+    <section>
+      <h2 data-i18n="hView"></h2>
+      <div class="row">
+        <button data-view="iso" class="on" data-i18n="vIso"></button>
+        <button data-view="front" data-i18n="vFront"></button>
+        <button data-view="top" data-i18n="vTop"></button>
+        <button data-view="right" data-i18n="vRight"></button>
+      </div>
+      <div class="row">
+        <button id="btnReset" data-i18n="reset"></button>
+      </div>
+      <label for="auto"><input type="checkbox" id="auto"> <span data-i18n="auto"></span></label>
+      <label for="hideBox"><input type="checkbox" id="hideBox"> <span data-i18n="hide"></span></label>
+      <label for="labels"><input type="checkbox" id="labels" checked> <span data-i18n="labels"></span></label>
+    </section>
+
+    <section>
+      <h2 data-i18n="hState"></h2>
+      <span class="state" id="state" data-s="idle"><i></i><span id="stateTxt"></span></span>
+      <div class="stats">
+        <div class="stat"><span class="k" data-i18n="kV"></span><span class="v" id="vVal">0<small> cm³</small></span></div>
+        <div class="stat"><span class="k" data-i18n="kH"></span><span class="v" id="hVal">0.00<small> cm</small></span></div>
+        <div class="stat"><span class="k" data-i18n="kCap"></span><span class="v">7200<small> cm³</small></span></div>
+        <div class="stat"><span class="k" data-i18n="kSpill"></span><span class="v" id="sVal">0<small> cm³</small></span></div>
+      </div>
+      <div class="meter" aria-hidden="true"><b id="meter"></b></div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+// ---------- i18n ----------
+const T={
+ en:{title:"A Prism Fixed Inside a Cube Container: 4 Faces Free, 2 Faces Attached to the Container",
+  sub:"Cube container, edge 20 cm. A solid 4 × 10 × 20 cm prism runs through the centre; its two 4 × 10 ends are joined to the front and back walls.",
+  hint:"Drag to rotate · scroll or pinch to zoom", pausedTag:"⏸ Time paused",
+  hPour:"Add water", pour:"Start pouring", pause:"Pause time", resume:"Resume time", empty:"Empty", speed:"Speed",
+  hView:"Viewing angle", vIso:"3D", vFront:"Front", vTop:"Top", vRight:"Right", reset:"Back to start position",
+  auto:"Auto-rotate", hide:"Hide container and prism (water only)", labels:"Show dimensions",
+  hState:"Current state", kV:"Water poured V", kH:"Water depth h", kCap:"Container capacity", kSpill:"Water spilled",
+  sEmpty:"Empty", sStill:"Water (still)", sPour:"Pouring…", sPause:"Time paused", sOver:"Overflowing!", sFull:"Full",
+  tFull:"The container is already full", tOver:"The water is overflowing!", tAuto:"Water overflowed — pouring stopped. 7200 cm³ inside.",
+  tPause:(v,h)=>`Time paused: V = ${v} cm³, h = ${h} cm. Rotate to look at the water.`, aria:"3D model of the container, drag to rotate"},
+ zh:{title:"立方容器中安裝一柱體，4 面懸空，2 面與容器相連",
+  sub:"正方體容器邊長 20 cm；4 × 10 × 20 cm 的實心柱體穿過中央，兩個 4 × 10 的端面分別與容器前、後壁相連。",
+  hint:"拖曳旋轉 · 滾輪或雙指縮放", pausedTag:"⏸ 時間暫停",
+  hPour:"加水", pour:"開始加水", pause:"時間暫停", resume:"時間繼續", empty:"清空", speed:"速度",
+  hView:"觀察角度", vIso:"立體", vFront:"前視圖", vTop:"俯視圖", vRight:"右視圖", reset:"回到初始位置",
+  auto:"自動旋轉", hide:"隱藏容器與柱體（只看水）", labels:"顯示尺寸",
+  hState:"目前狀態", kV:"已倒入水量 V", kH:"水深 h", kCap:"容器可裝水量", kSpill:"溢出水量",
+  sEmpty:"空容器", sStill:"水（靜止）", sPour:"加水中…", sPause:"時間暫停", sOver:"水滿出來了！", sFull:"已滿",
+  tFull:"容器已經滿了", tOver:"水滿出來了！", tAuto:"水已滿出，自動停止加水。容器內 7200 cm³",
+  tPause:(v,h)=>`時間暫停：V = ${v} cm³，h = ${h} cm，可旋轉觀察水的形狀`, aria:"3D 容器模型，拖曳可旋轉"}
+};
+let lang='en';
+const tr=k=>T[lang][k];
+function applyLang(){
+  document.documentElement.lang=lang==='en'?'en':'zh-Hant';
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=tr(el.dataset.i18n));
+  document.getElementById('cv').setAttribute('aria-label',tr('aria'));
+  document.getElementById('lnEn').setAttribute('aria-pressed',lang==='en');
+  document.getElementById('lnZh').setAttribute('aria-pressed',lang==='zh');
+  try{localStorage.setItem('cubeLang',lang);}catch(e){}
+  refreshUI();
+}
+try{const s=localStorage.getItem('cubeLang'); if(s==='zh'||s==='en') lang=s;}catch(e){}
+
+// ---------- geometry ----------
+const S=20, X0=8, X1=12, Y0=5, Y1=15, CAP=S*S*S-4*10*20; // 7200
+function hOf(V){ if(V<=2000) return V/400; if(V<=5200) return 5+(V-2000)/320; return Math.min(20,15+(V-5200)/400); }
+
+const stage=document.getElementById('stage'), cv=document.getElementById('cv');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(35,1,1,600);
+const CAM0=82; let camDist=CAM0; camera.position.set(0,0,camDist);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x8899aa,0.75));
+const dl=new THREE.DirectionalLight(0xffffff,0.65); dl.position.set(30,50,40); scene.add(dl);
+const dl2=new THREE.DirectionalLight(0xffffff,0.25); dl2.position.set(-40,-20,-30); scene.add(dl2);
+
+const obj=new THREE.Group(); scene.add(obj);
+obj.position.y=2;
+const inner=new THREE.Group(); inner.position.set(-10,-10,-10); obj.add(inner);
+
+// table (faint) — container sits on it so the bottom is always clear
+const tableMat=new THREE.MeshPhongMaterial({color:0xc9b28f,transparent:true,opacity:0.28,side:THREE.DoubleSide,depthWrite:false,shininess:10});
+const table=new THREE.Mesh(new THREE.CircleGeometry(38,64),tableMat);
+table.rotation.x=-Math.PI/2; table.position.set(10,-0.06,10); table.renderOrder=0; inner.add(table);
+const tableRim=new THREE.LineLoop(new THREE.EdgesGeometry(new THREE.CircleGeometry(38,64)),new THREE.LineBasicMaterial({color:0xa08a68,transparent:true,opacity:0.5}));
+tableRim.rotation.x=-Math.PI/2; tableRim.position.copy(table.position); inner.add(tableRim);
+const shadow=new THREE.Mesh(new THREE.PlaneGeometry(S+1.2,S+1.2),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.08,depthWrite:false}));
+shadow.rotation.x=-Math.PI/2; shadow.position.set(10,-0.03,10); inner.add(shadow);
+// puddle of spilled water
+const puddleMat=new THREE.MeshPhongMaterial({color:0x2f8fd0,transparent:true,opacity:0.35,depthWrite:false});
+const puddle=new THREE.Mesh(new THREE.CircleGeometry(1,64),puddleMat);
+puddle.rotation.x=-Math.PI/2; puddle.position.set(10,-0.02,10); puddle.visible=false; inner.add(puddle);
+
+// container (open-top glass)
+const boxGroup=new THREE.Group(); inner.add(boxGroup);
+const glassMat=new THREE.MeshPhongMaterial({color:0xbfd8e4,transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false,shininess:90});
+function plane(w,h,pos,rot){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),glassMat);m.position.set(...pos);if(rot)m.rotation.set(...rot);m.renderOrder=3;boxGroup.add(m);}
+plane(S,S,[10,10,0]); plane(S,S,[10,10,20]);
+plane(S,S,[0,10,10],[0,Math.PI/2,0]); plane(S,S,[20,10,10],[0,Math.PI/2,0]);
+plane(S,S,[10,0,10],[Math.PI/2,0,0]);
+const edgeMat=new THREE.LineBasicMaterial({color:0x2b3d48});
+const boxEdges=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(S,S,S)),edgeMat);
+boxEdges.position.set(10,10,10); boxGroup.add(boxEdges);
+
+// solid prism 4 x 10 x 20, ends joined to front & back walls, other 4 faces free
+const cubMat=new THREE.MeshPhongMaterial({color:0x9aa3ab,shininess:30});
+const cubGeo=new THREE.BoxGeometry(X1-X0,Y1-Y0,S);
+const cub=new THREE.Mesh(cubGeo,cubMat); cub.position.set(10,10,10); boxGroup.add(cub);
+const cubEdges=new THREE.LineSegments(new THREE.EdgesGeometry(cubGeo),edgeMat); cubEdges.position.copy(cub.position); boxGroup.add(cubEdges);
+
+// water body
+const waterMat=new THREE.MeshPhongMaterial({color:0x2f8fd0,transparent:true,opacity:0.55,depthWrite:false,shininess:120,specular:0x99ccee,side:THREE.DoubleSide});
+const waterEdgeMat=new THREE.LineBasicMaterial({color:0x1d6ea3,transparent:true,opacity:0.55});
+let waterMesh=null, waterEdges=null, builtH=-1;
+const E=0.04;
+function shapeFor(h){
+  const xl=E,xr=S-E,hx0=X0-E,hx1=X1+E,hy0=Y0-E,hy1=Y1+E,yb=E;
+  const s=new THREE.Shape();
+  if(h<=hy0){ s.moveTo(xl,yb);s.lineTo(xr,yb);s.lineTo(xr,h);s.lineTo(xl,h);s.lineTo(xl,yb); }
+  else if(h<=hy1){ s.moveTo(xl,yb);s.lineTo(xr,yb);s.lineTo(xr,h);s.lineTo(hx1,h);s.lineTo(hx1,hy0);s.lineTo(hx0,hy0);s.lineTo(hx0,h);s.lineTo(xl,h);s.lineTo(xl,yb); }
+  else { s.moveTo(xl,yb);s.lineTo(xr,yb);s.lineTo(xr,h);s.lineTo(xl,h);s.lineTo(xl,yb);
+    const hole=new THREE.Path(); hole.moveTo(hx0,hy0);hole.lineTo(hx0,hy1);hole.lineTo(hx1,hy1);hole.lineTo(hx1,hy0);hole.lineTo(hx0,hy0); s.holes.push(hole); }
+  return s;
+}
+function buildWater(h){
+  if(Math.abs(h-builtH)<0.002) return; builtH=h;
+  if(waterMesh){inner.remove(waterMesh);waterMesh.geometry.dispose();inner.remove(waterEdges);waterEdges.geometry.dispose();waterMesh=null;}
+  if(h<E+0.02) return;
+  const g=new THREE.ExtrudeGeometry(shapeFor(Math.min(h,S-E)),{depth:S-2*E,bevelEnabled:false});
+  g.translate(0,0,E);
+  waterMesh=new THREE.Mesh(g,waterMat); waterMesh.renderOrder=1; inner.add(waterMesh);
+  waterEdges=new THREE.LineSegments(new THREE.EdgesGeometry(g,20),waterEdgeMat); waterEdges.renderOrder=2; inner.add(waterEdges);
+}
+
+// pouring stream
+const streamMat=new THREE.MeshPhongMaterial({color:0x3a9be0,transparent:true,opacity:0.75,depthWrite:false});
+const stream=new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,1,16,1,true),streamMat);
+stream.position.set(4,0,10); stream.visible=false; stream.renderOrder=1; inner.add(stream);
+const STREAM_TOP=34;
+
+// overflow particles
+const NP=700; const pPos=new Float32Array(NP*3), pVel=new Float32Array(NP*3);
+for(let i=0;i<NP;i++){pPos[i*3+1]=-999;}
+const pGeo=new THREE.BufferGeometry(); pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const pMat=new THREE.PointsMaterial({color:0x3a9be0,size:0.55,transparent:true,opacity:0.85,depthWrite:false});
+const parts=new THREE.Points(pGeo,pMat); parts.frustumCulled=false; inner.add(parts);
+let pNext=0;
+function spawn(n){ for(let k=0;k<n;k++){ const i=pNext; pNext=(pNext+1)%NP; const side=Math.floor(Math.random()*4), t=Math.random()*S, sp=1.5+Math.random()*2.5;
+  let x,z,vx=0,vz=0;
+  if(side===0){x=-0.05;z=t;vx=-sp}else if(side===1){x=S+0.05;z=t;vx=sp}else if(side===2){x=t;z=-0.05;vz=-sp}else{x=t;z=S+0.05;vz=sp}
+  pPos[i*3]=x;pPos[i*3+1]=S+0.2;pPos[i*3+2]=z;pVel[i*3]=vx;pVel[i*3+1]=1+Math.random()*1.5;pVel[i*3+2]=vz; } }
+
+// dimension labels
+const labelGroup=new THREE.Group(); inner.add(labelGroup);
+function label(text,pos,scale){
+  const c=document.createElement('canvas'); c.width=256;c.height=128; const x=c.getContext('2d');
+  x.font='600 64px "IBM Plex Mono", Consolas, monospace'; x.textAlign='center'; x.textBaseline='middle';
+  x.lineWidth=10; x.strokeStyle='rgba(255,255,255,0.92)'; x.strokeText(text,128,64); x.fillStyle='#1b2a33'; x.fillText(text,128,64);
+  const tex=new THREE.CanvasTexture(c);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+  sp.scale.set(4*(scale||1),2*(scale||1),1); sp.position.set(...pos); sp.renderOrder=10; labelGroup.add(sp);
+}
+label('20',[10,1.2,22.6]); label('20',[21.8,10,20.5]); label('20',[22.6,1.2,10]);
+label('10',[6.4,10,20.4],0.9); label('4',[10,3.5,20.4],0.9);
+// live height tag + level marker
+const hc=document.createElement('canvas'); hc.width=512;hc.height=128; const hx=hc.getContext('2d');
+const htex=new THREE.CanvasTexture(hc);
+const hTag=new THREE.Sprite(new THREE.SpriteMaterial({map:htex,depthTest:false,transparent:true}));
+hTag.scale.set(9,2.25,1); hTag.renderOrder=11; inner.add(hTag);
+let lastHText='';
+function drawHTag(t){ if(t===lastHText) return; lastHText=t; hx.clearRect(0,0,512,128);
+  hx.font='600 58px "IBM Plex Mono", Consolas, monospace'; hx.textBaseline='middle'; hx.textAlign='left';
+  hx.lineWidth=10; hx.strokeStyle='rgba(255,255,255,0.95)'; hx.strokeText(t,20,64); hx.fillStyle='#0f5f88'; hx.fillText(t,20,64); htex.needsUpdate=true; }
+const lvlMat=new THREE.LineDashedMaterial({color:0x0f6f9c,dashSize:0.6,gapSize:0.4});
+const lvl=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(20,0,20),new THREE.Vector3(24,0,20)]),lvlMat); lvl.computeLineDistances(); inner.add(lvl);
+
+// ---------- state ----------
+let V=0, spilled=0, pouring=false, paused=false, overflowAcc=0, overflowed=false;
+const $=id=>document.getElementById(id);
+const btnPour=$('btnPour'),btnPause=$('btnPause'),btnEmpty=$('btnEmpty');
+let toastTimer=null;
+function toast(msg,kind){const t=$('toast');t.textContent=msg;t.className='toast'+(kind?' '+kind:'');t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.hidden=true,3400);}
+
+btnPour.onclick=()=>{ if(V>=CAP){toast(tr('tFull'));return;} pouring=true; paused=false; overflowAcc=0; overflowed=false; refreshUI(); };
+btnPause.onclick=()=>{ if(!pouring&&!paused) return; paused=!paused;
+  if(paused) toast(tr('tPause')(Math.round(V),hOf(V).toFixed(2)),'okay'); refreshUI(); };
+btnEmpty.onclick=()=>{ pouring=false; paused=false; V=0; spilled=0; overflowed=false; for(let i=0;i<NP;i++)pPos[i*3+1]=-999; refreshUI(); };
+$('rate').oninput=e=>$('rateVal').textContent=e.target.value;
+$('hideBox').onchange=e=>{ boxGroup.visible=!e.target.checked; };
+$('labels').onchange=e=>{ labelGroup.visible=e.target.checked; };
+$('lnEn').onclick=()=>{lang='en';applyLang();};
+$('lnZh').onclick=()=>{lang='zh';applyLang();};
+
+function refreshUI(){
+  const h=hOf(V);
+  $('vVal').innerHTML=Math.round(V)+'<small> cm³</small>';
+  $('hVal').innerHTML=h.toFixed(2)+'<small> cm</small>';
+  $('sVal').innerHTML=Math.round(spilled)+'<small> cm³</small>';
+  const m=$('meter'); m.style.width=(V/CAP*100)+'%'; m.style.background=paused?'var(--pause)':(V>=CAP?'var(--warn)':'var(--accent)');
+  const st=$('state'), tx=$('stateTxt');
+  if(paused){st.dataset.s='pause';tx.textContent=tr('sPause');}
+  else if(pouring&&V>=CAP){st.dataset.s='over';tx.textContent=tr('sOver');}
+  else if(pouring){st.dataset.s='pour';tx.textContent=tr('sPour');}
+  else if(V>=CAP){st.dataset.s='over';tx.textContent=tr('sFull');}
+  else if(V>0){st.dataset.s='idle';tx.textContent=tr('sStill');}
+  else {st.dataset.s='idle';tx.textContent=tr('sEmpty');}
+  btnPour.disabled=pouring||paused||V>=CAP;
+  btnPause.disabled=!(pouring||paused);
+  btnPause.textContent=paused?tr('resume'):tr('pause');
+  $('pausedTag').hidden=!paused;
+}
+
+// ---------- rotation (whole scene incl. table, so gravity stays "down" to the table) ----------
+const AX=new THREE.Vector3(1,0,0), AY=new THREE.Vector3(0,1,0);
+function qAxis(a,ang){return new THREE.Quaternion().setFromAxisAngle(a,ang);}
+const VIEWS={
+  iso:()=>qAxis(AX,0.42).multiply(qAxis(AY,-0.62)),
+  front:()=>new THREE.Quaternion(),
+  top:()=>qAxis(AX,Math.PI/2),
+  right:()=>qAxis(AY,-Math.PI/2)
+};
+obj.quaternion.copy(VIEWS.iso());
+let slerpFrom=null, slerpTo=null, slerpT=1, velX=0, velY=0, dragging=false;
+function goTo(q){ slerpFrom=obj.quaternion.clone(); slerpTo=q; slerpT=0; velX=velY=0; }
+function markView(name){document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('on',x.dataset.view===name));}
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{ markView(b.dataset.view); goTo(VIEWS[b.dataset.view]()); });
+$('btnReset').onclick=()=>{ $('auto').checked=false; camDist=CAM0; markView('iso'); goTo(VIEWS.iso()); };
+
+function rotateBy(dx,dy){ obj.quaternion.premultiply(qAxis(AY,dx)).premultiply(qAxis(AX,dy)); obj.quaternion.normalize(); }
+const ptrs=new Map(); let lastPinch=0;
+cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); dragging=true; slerpT=1; velX=velY=0; markView(null);
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()]; lastPinch=Math.hypot(a.x-b.x,a.y-b.y);} });
+cv.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId)) return; const p=ptrs.get(e.pointerId);
+  const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
+  if(ptrs.size===1){ const k=0.009; rotateBy(dx*k,dy*k); velX=dx*k; velY=dy*k; }
+  else if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if(lastPinch>0) camDist=Math.max(45,Math.min(170,camDist*lastPinch/d)); lastPinch=d; } });
+function up(e){ ptrs.delete(e.pointerId); if(ptrs.size===0) dragging=false; lastPinch=0; }
+cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+cv.addEventListener('wheel',e=>{ e.preventDefault(); camDist=Math.max(45,Math.min(170,camDist*(1+Math.sign(e.deltaY)*0.08))); },{passive:false});
+
+// ---------- theme + resize ----------
+function readTheme(){ const c=getComputedStyle(document.documentElement).getPropertyValue('--stage').trim()||'#dfe7eb'; renderer.setClearColor(new THREE.Color(c));
+  const dark=new THREE.Color(c).getHSL({}).l<0.4; edgeMat.color.setHex(dark?0xa9c1cf:0x2b3d48); tableMat.opacity=dark?0.22:0.28; }
+readTheme();
+try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTheme); }catch(e){}
+new MutationObserver(readTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function resize(){ const w=stage.clientWidth,h=stage.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage); resize();
+
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(pouring&&!paused){
+    const rate=+$('rate').value;
+    V+=rate*dt;
+    if(V>=CAP){ spilled+=V-CAP; V=CAP; if(!overflowed){ overflowed=true; toast(tr('tOver')); }
+      overflowAcc+=dt; spawn(Math.ceil(rate/40));
+      if(overflowAcc>2.6){ pouring=false; toast(tr('tAuto')); } }
+    refreshUI();
+  }
+  const h=hOf(V);
+  buildWater(h);
+  stream.visible=pouring&&!paused;
+  if(pouring){ const len=STREAM_TOP-h; stream.scale.set(1,len,1); stream.position.y=h+len/2; }
+  if(!paused){
+    for(let i=0;i<NP;i++){ if(pPos[i*3+1]<-900) continue; pVel[i*3+1]-=40*dt; pPos[i*3]+=pVel[i*3]*dt; pPos[i*3+1]+=pVel[i*3+1]*dt; pPos[i*3+2]+=pVel[i*3+2]*dt; if(pPos[i*3+1]<0) pPos[i*3+1]=-999; }
+    pGeo.attributes.position.needsUpdate=true;
+  }
+  puddle.visible=spilled>0;
+  if(spilled>0){ const r=Math.min(36,Math.sqrt((S*S/Math.PI)*0.5+spilled/(0.3*Math.PI))); puddle.scale.set(r,r,1); }
+  hTag.visible=V>0; lvl.visible=V>0;
+  if(V>0){ hTag.position.set(28.5,Math.max(h,0.6),20); drawHTag('h='+h.toFixed(2)); lvl.position.y=h; }
+  if(slerpT<1){ slerpT=Math.min(1,slerpT+dt/(reduce?0.05:0.9)); const e=slerpT<.5?2*slerpT*slerpT:1-Math.pow(-2*slerpT+2,2)/2; THREE.Quaternion.slerp(slerpFrom,slerpTo,obj.quaternion,e); }
+  else if(!dragging){ if(Math.abs(velX)+Math.abs(velY)>1e-4){ rotateBy(velX,velY); velX*=0.92; velY*=0.92; }
+    if($('auto').checked) rotateBy(0.35*dt,0); }
+  camera.position.z+=(camDist-camera.position.z)*0.2;
+  renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+applyLang();
+requestAnimationFrame(frame);
+})();
+</script>
