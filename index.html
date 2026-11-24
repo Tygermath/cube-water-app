@@ -59,6 +59,9 @@ button:disabled{opacity:.42;cursor:not-allowed}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
 button.pause{background:var(--pause);color:#fff;border-color:var(--pause);font-weight:700}
 button.on{outline:2px solid var(--accent);outline-offset:1px}
+.views{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.views button{padding:10px 8px}
+.views button.bird{border:2px dashed var(--muted)}
 label{font-size:14px;display:flex;align-items:center;gap:8px}
 input[type=range]{flex:1;min-width:0;accent-color:var(--accent)}
 input[type=number]{width:96px;font:inherit;font-family:var(--f-mono);padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
@@ -106,10 +109,10 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none
 
     <section>
       <h2 data-i18n="hView"></h2>
-      <div class="row">
-        <button data-view="iso" class="on" data-i18n="vIso"></button>
-        <button data-view="front" data-i18n="vFront"></button>
+      <div class="views">
         <button data-view="top" data-i18n="vTop"></button>
+        <button data-view="iso" class="on bird" data-i18n="vIso"></button>
+        <button data-view="front" data-i18n="vFront"></button>
         <button data-view="right" data-i18n="vRight"></button>
       </div>
       <div class="row">
@@ -122,12 +125,9 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none
 
     <section>
       <h2 data-i18n="hState"></h2>
-      <span class="state" id="state" data-s="idle"><i></i><span id="stateTxt"></span></span>
       <div class="stats">
         <div class="stat"><span class="k" data-i18n="kV"></span><span class="v" id="vVal">0<small> cm³</small></span></div>
         <div class="stat"><span class="k" data-i18n="kH"></span><span class="v" id="hVal">0.00<small> cm</small></span></div>
-        <div class="stat"><span class="k" data-i18n="kCap"></span><span class="v">7200<small> cm³</small></span></div>
-        <div class="stat"><span class="k" data-i18n="kSpill"></span><span class="v" id="sVal">0<small> cm³</small></span></div>
       </div>
       <div class="meter" aria-hidden="true"><b id="meter"></b></div>
     </section>
@@ -145,7 +145,7 @@ const T={
   amt:"Amount to add", add:"Add", tBadAmt:"Enter an amount greater than 0",
   tAdded:(a,v,h)=>`Added ${a} cm³ → V = ${v} cm³, h = ${h} cm`,
   hPour:"Add water", pour:"Start pouring", pause:"Pause time", resume:"Resume time", empty:"Empty", speed:"Speed",
-  hView:"Viewing angle", vIso:"3D", vFront:"Front", vTop:"Top", vRight:"Right", reset:"Back to start position",
+  hView:"Viewing angle", vIso:"Bird's Eye View", vFront:"Front", vTop:"Top", vRight:"Right", reset:"Back to start position",
   auto:"Auto-rotate", hide:"Hide container and prism (water only)", labels:"Show dimensions",
   hState:"Current state", kV:"Water poured V", kH:"Water depth h", kCap:"Container capacity", kSpill:"Water spilled",
   sEmpty:"Empty", sStill:"Water (still)", sPour:"Pouring…", sPause:"Time paused", sOver:"Overflowing!", sFull:"Full",
@@ -157,7 +157,7 @@ const T={
   amt:"加水量", add:"加入", tBadAmt:"請輸入大於 0 的水量",
   tAdded:(a,v,h)=>`已加入 ${a} cm³ → V = ${v} cm³，h = ${h} cm`,
   hPour:"加水", pour:"開始加水", pause:"時間暫停", resume:"時間繼續", empty:"清空", speed:"速度",
-  hView:"觀察角度", vIso:"立體", vFront:"前視圖", vTop:"俯視圖", vRight:"右視圖", reset:"回到初始位置",
+  hView:"觀察角度", vIso:"鳥瞰圖", vFront:"前視圖", vTop:"俯視圖", vRight:"右視圖", reset:"回到初始位置",
   auto:"自動旋轉", hide:"隱藏容器與柱體（只看水）", labels:"顯示尺寸",
   hState:"目前狀態", kV:"已倒入水量 V", kH:"水深 h", kCap:"容器可裝水量", kSpill:"溢出水量",
   sEmpty:"空容器", sStill:"水（靜止）", sPour:"加水中…", sPause:"時間暫停", sOver:"水滿出來了！", sFull:"已滿",
@@ -317,15 +317,7 @@ function refreshUI(){
   const h=hOf(V);
   $('vVal').innerHTML=Math.round(V)+'<small> cm³</small>';
   $('hVal').innerHTML=h.toFixed(2)+'<small> cm</small>';
-  $('sVal').innerHTML=Math.round(spilled)+'<small> cm³</small>';
   const m=$('meter'); m.style.width=(V/CAP*100)+'%'; m.style.background=paused?'var(--pause)':(V>=CAP?'var(--warn)':'var(--accent)');
-  const st=$('state'), tx=$('stateTxt');
-  if(paused){st.dataset.s='pause';tx.textContent=tr('sPause');}
-  else if(pouring&&V>=CAP){st.dataset.s='over';tx.textContent=tr('sOver');}
-  else if(pouring){st.dataset.s='pour';tx.textContent=tr('sPour');}
-  else if(V>=CAP){st.dataset.s='over';tx.textContent=tr('sFull');}
-  else if(V>0){st.dataset.s='idle';tx.textContent=tr('sStill');}
-  else {st.dataset.s='idle';tx.textContent=tr('sEmpty');}
   btnPour.disabled=pouring||paused||V>=CAP;
   $('btnAdd').disabled=pouring||paused||V>=CAP;
   btnPause.disabled=!(pouring||paused);
