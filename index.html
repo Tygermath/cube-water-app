@@ -49,8 +49,6 @@ h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute
 .state{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--chip);width:fit-content}
 .state i{width:9px;height:9px;border-radius:50%;background:var(--muted)}
 .state[data-s="pour"] i{background:var(--accent)} .state[data-s="pause"] i{background:var(--pause)} .state[data-s="over"] i{background:var(--warn)}
-.meter{height:8px;border-radius:99px;background:var(--chip);overflow:hidden}
-.meter b{display:block;height:100%;width:0;background:var(--accent)}
 .row{display:flex;flex-wrap:wrap;gap:8px}
 button{font:inherit;font-size:14px;font-weight:500;border:1px solid var(--line);background:var(--chip);color:var(--fg);padding:7px 12px;border-radius:8px;cursor:pointer}
 button:hover:not(:disabled){border-color:var(--accent)}
@@ -113,7 +111,6 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;flex:none
         <div class="stat"><span class="k" data-i18n="kV"></span><span class="v" id="vVal">0<small> cm³</small></span></div>
         <div class="stat"><span class="k" data-i18n="kH"></span><span class="v" id="hVal">0.00<small> cm</small></span></div>
       </div>
-      <div class="meter" aria-hidden="true"><b id="meter"></b></div>
     </section>
     <section>
       <h2 data-i18n="hView"></h2>
@@ -317,7 +314,6 @@ function refreshUI(){
   const h=hOf(V);
   $('vVal').innerHTML=Math.round(V)+'<small> cm³</small>';
   $('hVal').innerHTML=h.toFixed(2)+'<small> cm</small>';
-  const m=$('meter'); m.style.width=(V/CAP*100)+'%'; m.style.background=paused?'var(--pause)':(V>=CAP?'var(--warn)':'var(--accent)');
   btnPour.disabled=pouring||paused||V>=CAP;
   $('btnAdd').disabled=pouring||paused||V>=CAP;
   btnPause.disabled=!(pouring||paused);
